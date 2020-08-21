@@ -404,7 +404,7 @@ contract TokenTimelock {
     }
 
     /**
-     * @return the time when the tokens are released.
+     * @return the price when the tokens are released.
      */
     function releasePrice() public view returns (uint256) {
         return _releasePrice;
