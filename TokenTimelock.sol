@@ -4,7 +4,7 @@ pragma solidity ^0.5.8;
  * @title TRC20 interface
  */
 interface ITRC20 {
-  function transfer(address to, uint256 value) external returns (bool);
+  function transfer(address to, uint256 value) external;
   function approve(address spender, uint256 value) external returns (bool);
   function transferFrom(address from, address to, uint256 value) external returns (bool);
   function totalSupply() external view returns (uint256);
@@ -359,6 +359,7 @@ interface IJustswapExchange {
 }
 
 
+
 contract TokenTimelock {
 
     // ITRC20 basic token contract being held
@@ -373,13 +374,21 @@ contract TokenTimelock {
     uint256 private _releaseTime;
 
     uint256 private _releasePrice;
+    
+    address public governance;
+
+    modifier onlyGovernance {
+        require(msg.sender == governance, "not governance");
+        _;
+    }
 
     constructor (ITRC20 token, IJustswapExchange exchange, address beneficiary, uint256 releasePrice) public {
-        _releaseTime =  block.timestamp + 30 days;
+        _releaseTime =  block.timestamp + 5 minutes; //30 days;
         _token = token;
         swap = exchange;
         _beneficiary = beneficiary;
         _releasePrice = releasePrice;
+        governance = tx.origin;
     }
 
     /**
@@ -389,12 +398,29 @@ contract TokenTimelock {
         return _token;
     }
 
+    function setGovernance(address _governance)  public  onlyGovernance
+    {
+        require(_governance != address(0), "new governance the zero address");
+        governance = _governance;
+    }
+
+
     /**
      * @return the beneficiary of the tokens.
      */
     function beneficiary() public view returns (address) {
         return _beneficiary;
     }
+
+    /**
+     * @return the beneficiary of the tokens.
+     */
+    function setBeneficiary(address addr) public  onlyGovernance{
+        require(addr != address(0), "new governance the zero address");
+         _beneficiary = addr;
+    }
+
+    
 
     /**
      * @return the time when the tokens are released.
@@ -415,13 +441,17 @@ contract TokenTimelock {
         return swap.getTokenToTrxInputPrice(tokens_sold);
     }
 
+    function setId(uint256 id) public onlyGovernance{
+        // do nothing
+    }
+
     /**
      * @notice Transfers tokens held by timelock to beneficiary.
      */
     function release() public {
         // solhint-disable-next-line not-rely-on-time
         uint256 tokenPrice = getTokenPrice(1000000);
-        require( block.timestamp >= _releaseTime || tokenPrice >=  _releasePrice, "can;t release");
+        require( block.timestamp >= _releaseTime || tokenPrice >=  _releasePrice, "can't release" );
 
         uint256 amount = _token.balanceOf(address(this));
         require(amount > 0, "TokenTimelock: no tokens to release");
